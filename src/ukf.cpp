@@ -145,8 +145,8 @@ measurements.
 	//cout << "x_ = " << x_ << endl;
 	//cout << "P_ = " << P_ << endl;
 
-	cout << NIS_laser_ << endl;	
-	//cout << NIS_radar_ << endl;
+	//cout << NIS_laser_ << endl;	
+	cout << NIS_radar_ << endl;
 }
 
 /**
