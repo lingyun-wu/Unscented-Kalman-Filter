@@ -25,10 +25,10 @@ UKF::UKF() {
 	P_ = MatrixXd(5, 5);
 
 	// Process noise standard deviation longitudinal acceleration in m/s^2
-	std_a_ = 3.;
+	std_a_ = 2;
 
 	// Process noise standard deviation yaw acceleration in rad/s^2
-	std_yawdd_ = 1.;
+	std_yawdd_ = 1;
 
 	//DO NOT MODIFY measurement noise values below these are provided by the sensor manufacturer.
 	// Laser measurement noise standard deviation position1 in m
@@ -69,6 +69,19 @@ Hint: one or more values initialized above might be wildly off...
 	}
 
 	Xsig_pred_ = MatrixXd(n_x_, 2*n_aug_+1);
+
+	R_lidar_ = MatrixXd(2, 2);
+	R_lidar_ << std_laspx_*std_laspx_, 0,
+	  			0, std_laspy_*std_laspy_;
+
+
+	R_radar_ = MatrixXd(3,3);
+	R_radar_ <<  std_radr_*std_radr_, 0, 0,
+	  			0, std_radphi_*std_radphi_, 0,
+	  			0, 0, std_radrd_*std_radrd_;
+
+	NIS_laser_ = 0.0;
+	NIS_radar_ = 0.0;
 }
 
 UKF::~UKF() {}
@@ -88,13 +101,13 @@ measurements.
 	if (!is_initialized_) {
 
 		cout << "Unscented Kalman Filter :" << endl;
-		x_ << 1, 1, 1, 0, 0;
+		x_ << 1, 1, 3, 0, 0;
 
 		P_ << 1, 0, 0, 0, 0,
-		   0, 1, 0, 0, 0,
-		   0, 0, 1, 0, 0,
-		   0, 0, 0, 1, 0,
-		   0, 0, 0, 0, 1;
+		   	  0, 1, 0, 0, 0,
+		   	  0, 0, 1, 0, 0,
+		      0, 0, 0, 1, 0,
+		      0, 0, 0, 0, 1;
 
 		is_initialized_ = true;
 		time_us_ = meas_package.timestamp_;
@@ -114,26 +127,26 @@ measurements.
 		return;
 	}
 
-	cout << "OK1 " << endl;
 	double dt = (meas_package.timestamp_ - time_us_) / 1000000.0;
 	time_us_ = meas_package.timestamp_;
 
 	// Predict 
 	Prediction(dt);
 
-	cout << "OK2" <<endl;
 
 	// Update
-	if (meas_package.sensor_type_ == MeasurementPackage::RADAR) {
+	if (meas_package.sensor_type_ == MeasurementPackage::RADAR && use_radar_) {
 		UpdateRadar(meas_package);
-	} else {
+	} else if (use_laser_) {
 		UpdateLidar(meas_package);
 	}	
 
-	cout << "OK3" << endl;
 	// print the output 
-	cout << "x_ = " << x_ << endl;
-	cout << "P_ = " << P_ << endl;
+	//cout << "x_ = " << x_ << endl;
+	//cout << "P_ = " << P_ << endl;
+
+	cout << NIS_laser_ << endl;	
+	//cout << NIS_radar_ << endl;
 }
 
 /**
@@ -172,9 +185,10 @@ vector, x_. Predict sigma points, the state, and the state covariance matrix.
 	//create augmented sigma points
 	Xsig_aug.col(0) = x_aug;
 
+	double lambda_plus_n_aug_sqrt = sqrt(lambda_ + n_aug_);
 	for (int i = 0; i < n_aug_; ++i) {
-		Xsig_aug.col(i+1) = x_aug + sqrt(lambda_ + n_aug_) * A.col(i);
-		Xsig_aug.col(n_aug_+1+i) = x_aug - sqrt(lambda_ + n_aug_) * A.col(i);
+		Xsig_aug.col(i+1) = x_aug + lambda_plus_n_aug_sqrt * A.col(i);
+		Xsig_aug.col(n_aug_+1+i) = x_aug - lambda_plus_n_aug_sqrt * A.col(i);
 	}
 
 
@@ -226,10 +240,10 @@ vector, x_. Predict sigma points, the state, and the state covariance matrix.
 
 
 	//predict state mean
-	for (int i = 0; i < 2*n_aug_+1; ++i) {
-		x_ = x_ + weights_(i)*Xsig_pred_.col(i);
-	}
+	x_ = Xsig_pred_ * weights_;
+	
 	//predict state covariance matrix
+	P_.fill(0.0);
 	for (int i = 0; i < 2*n_aug_+1; ++i) {
 		// state difference
 		VectorXd x_diff = Xsig_pred_.col(i) - x_;
@@ -279,11 +293,7 @@ You'll also need to calculate the lidar NIS.
 	S << P_(0,0), P_(0,1),
 	  P_(1,0), P_(1,1);
 
-	MatrixXd R = MatrixXd(n_z, n_z);
-	R << std_laspx_*std_laspx_, 0,
-	  0, std_laspy_*std_laspy_;
-
-	S = S + R;
+	S = S + R_lidar_;
 
 
 	//create matrix for cross correlation Tc
@@ -311,18 +321,17 @@ You'll also need to calculate the lidar NIS.
 	// Measured results
 	VectorXd z = VectorXd(n_z);
 	z << meas_package.raw_measurements_(0), 
-	  meas_package.raw_measurements_(1);
+	  	 meas_package.raw_measurements_(1);
 
 	//residual
 	VectorXd z_diff = z - z_pred;
 
-	//angle normalization
-	while (z_diff(1)> M_PI) z_diff(1)-=2.*M_PI;
-	while (z_diff(1)<-M_PI) z_diff(1)+=2.*M_PI;
-
 	//update state mean and covariance matrix
 	x_ = x_ + K * z_diff;
 	P_ = P_ - K*S*K.transpose();
+
+	//calculate NIS
+	NIS_laser_ = z_diff.transpose() * S.inverse() * z_diff;
 }
 
 /**
@@ -383,12 +392,7 @@ You'll also need to calculate the radar NIS.
 		S = S + weights_(i) * z_diff * z_diff.transpose();
 	}
 
-	//add measurement noise covariance matrix
-	MatrixXd R = MatrixXd(n_z,n_z);
-	R <<    std_radr_*std_radr_, 0, 0,
-	  0, std_radphi_*std_radphi_, 0,
-	  0, 0,std_radrd_*std_radrd_;
-	S = S + R;
+	S = S + R_radar_;
 
 
 	//create matrix for cross correlation Tc
@@ -432,4 +436,7 @@ You'll also need to calculate the radar NIS.
 	//update state mean and covariance matrix
 	x_ = x_ + K * z_diff;
 	P_ = P_ - K*S*K.transpose();
+
+	//calculate NIS
+	NIS_radar_ = z_diff.transpose() * S.inverse() * z_diff;
 }

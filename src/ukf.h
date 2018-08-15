@@ -31,6 +31,11 @@ public:
   ///* predicted sigma points matrix
   MatrixXd Xsig_pred_;
 
+  ///* Measurement noice covariance matrix
+  MatrixXd R_lidar_;
+
+  MatrixXd R_radar_;
+
   ///* time when the state is true, in us
   long long time_us_;
 
@@ -67,6 +72,9 @@ public:
   ///* Sigma point spreading parameter
   double lambda_;
 
+  // NIS
+  double NIS_laser_;
+  double NIS_radar_;
 
   /**
    * Constructor
