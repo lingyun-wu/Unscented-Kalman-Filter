@@ -3,10 +3,6 @@ Self-Driving Car Engineer Nanodegree Program
 
 [//]: # (Image References)
 [image1]: ./images/dataset1.png
-[image2]: ./images/position.png
-[image3]: ./images/velocity.png
-[image4]: ./images/laser_NIS.png
-[image5]: ./images/radar_NIS.png
 
 
 ## Project Basics
@@ -64,15 +60,20 @@ The accuracy of the model can be shown by the residual mean squared error (RMSE)
 
 The image below shows the trajectories of ground truth, measurements of lidar and radar, and UKF estimation.
 
-<img align="middle" width="700" height="500" src="./images/position.png">
+<p align="center">
+  <img width="1000" height="700" src="./images/position.png">
+</p>
 
 Here is the comparion between velocity trajectories of ground truth and UKF estimation.
 
-<img align="middle" width="700" height="500" src="./images/velocity.png">
+<p align="center">
+  <img width="1000" height="700" src="./images/velocity.png">
+</p>
 
 The two images below shows the normalized information squared (NIS) for both laser and radar noise checking. Because the variances of acceleration and yaw rate are hardcoded in the system, we need NIS to check whether the noise values are physically reasonable. 
 
-<img align="middle" width="700" height="500" src="./images/laser_NIS.png">
-
-<img align="middle" width="700" height="500" src="./images/radar_NIS.png">
+<p align="center">
+  <img width="1000" height="700" src="./images/laser_NIS.png">
+  <img width="1000" height="700" src="./images/radar_NIS.png">
+</p>
 
