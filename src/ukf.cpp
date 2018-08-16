@@ -55,31 +55,37 @@ Complete the initialization. See ukf.h for other member properties.
 Hint: one or more values initialized above might be wildly off...
 */
 	is_initialized_ = false;
-	time_us_ = 0.0;
+	// start time
+    time_us_ = 0.0;
 
+    // sizes for x and augmentation data
 	n_x_ = 5;
 	n_aug_ = 7;
+    
+    //lambda
 	lambda_ = 3 - n_aug_;
 
+    // set weights
 	weights_ = VectorXd(2*n_aug_+1);
-	//set weights
 	weights_(0) = lambda_/(lambda_+n_aug_);
 	for (int i = 1; i < 2*n_aug_+1; ++i) {
 		weights_(i) = 0.5/(lambda_+n_aug_);
 	}
 
+    // Prediction
 	Xsig_pred_ = MatrixXd(n_x_, 2*n_aug_+1);
 
+    // Measurment noise covirances for both lidar and radar 
 	R_lidar_ = MatrixXd(2, 2);
 	R_lidar_ << std_laspx_*std_laspx_, 0,
 	  			0, std_laspy_*std_laspy_;
-
 
 	R_radar_ = MatrixXd(3,3);
 	R_radar_ <<  std_radr_*std_radr_, 0, 0,
 	  			0, std_radphi_*std_radphi_, 0,
 	  			0, 0, std_radrd_*std_radrd_;
 
+    // NIS
 	NIS_laser_ = 0.0;
 	NIS_radar_ = 0.0;
 }
@@ -109,15 +115,18 @@ measurements.
 		      0, 0, 0, 1, 0,
 		      0, 0, 0, 0, 1;
 
+        // Set time
 		is_initialized_ = true;
 		time_us_ = meas_package.timestamp_;
 
+        // Set px and py based on laser or radar measurements
 		if (meas_package.sensor_type_ == MeasurementPackage::LASER) { 
 			x_(0) = meas_package.raw_measurements_(0);
 			x_(1) = meas_package.raw_measurements_(1);
 		} 
 		else if (meas_package.sensor_type_ == MeasurementPackage::RADAR) {
-			double rho = meas_package.raw_measurements_(0);
+			// Convert coordinates
+            double rho = meas_package.raw_measurements_(0);
 			double phi = meas_package.raw_measurements_(1);
 
 			x_(0) = rho * cos(phi);
@@ -127,6 +136,7 @@ measurements.
 		return;
 	}
 
+    // delta time
 	double dt = (meas_package.timestamp_ - time_us_) / 1000000.0;
 	time_us_ = meas_package.timestamp_;
 
@@ -142,11 +152,12 @@ measurements.
 	}	
 
 	// print the output 
-	//cout << "x_ = " << x_ << endl;
-	//cout << "P_ = " << P_ << endl;
-
+	cout << "x_ = " << x_ << endl;
+	cout << "P_ = " << P_ << endl;
+    
+    // Collect NIS data
 	//cout << NIS_laser_ << endl;	
-	cout << NIS_radar_ << endl;
+	//cout << NIS_radar_ << endl;
 }
 
 /**
@@ -285,6 +296,7 @@ You'll also need to calculate the lidar NIS.
 		Zsig(1,i) = p_y;                                
 	}
 
+    // Predicted measurements
 	VectorXd z_pred = VectorXd(n_z);
 	z_pred << x_(0), 
 		   x_(1);

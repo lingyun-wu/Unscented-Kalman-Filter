@@ -1,5 +1,6 @@
 #include <uWS/uWS.h>
 #include <iostream>
+#include <fstream>
 #include "json.hpp"
 #include <math.h>
 #include "ukf.h"
@@ -29,6 +30,7 @@ std::string hasData(std::string s) {
 int main()
 {
   uWS::Hub h;
+
 
   // Create a Kalman Filter instance
   UKF ukf;
@@ -76,6 +78,8 @@ int main()
           		meas_package.raw_measurements_ << px, py;
           		iss >> timestamp;
           		meas_package.timestamp_ = timestamp;
+
+                //cout << px << ' ' << py << ' ';
           } else if (sensor_type.compare("R") == 0) {
 
       	  		meas_package.sensor_type_ = MeasurementPackage::RADAR;
@@ -89,6 +93,8 @@ int main()
           		meas_package.raw_measurements_ << ro,theta, ro_dot;
           		iss >> timestamp;
           		meas_package.timestamp_ = timestamp;
+
+                //cout << ro*cos(theta) << ' ' << ro*sin(theta) << ' ';
           }
           float x_gt;
     	  float y_gt;
@@ -104,7 +110,7 @@ int main()
     	  gt_values(2) = vx_gt;
     	  gt_values(3) = vy_gt;
     	  ground_truth.push_back(gt_values);
-          
+      
           //Call ProcessMeasurment(meas_package) for Kalman filter
     	  ukf.ProcessMeasurement(meas_package);    	  
 
@@ -125,7 +131,9 @@ int main()
     	  estimate(2) = v1;
     	  estimate(3) = v2;
     	  
-    	  estimations.push_back(estimate);
+          //cout << x_gt << ' ' << y_gt << ' ' << p_x << ' ' << p_y << ' ' << sqrt(vx_gt*vx_gt+vy_gt*vy_gt) << ' ' << v << endl;
+    	  
+          estimations.push_back(estimate);
 
     	  VectorXd RMSE = tools.CalculateRMSE(estimations, ground_truth);
 
@@ -147,6 +155,7 @@ int main()
         ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
       }
     }
+
 
   });
 
